@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="uz">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Hisob daftari</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@600&family=Onest:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{--paper:#F6F8FC;--grid:#D3DFF2;--ink:#17398A;--red:#D6333F;--text:#1D2433;--key:#fff;--line:#BCCBE6;--tint:#E6EDFA;color-scheme:light}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{display:flex;flex-direction:column;background:var(--paper);color:var(--text);font:16px/1.4 "Onest",system-ui,sans-serif;padding-top:env(safe-area-inset-top)}
+.tabs{display:flex;gap:6px;overflow-x:auto;padding:8px 10px;background:var(--tint);border-bottom:1px solid var(--line)}
+.tabs button{flex:none;height:36px;padding:0 14px;border-radius:18px;border:1px solid var(--line);background:#fff;font:500 14px "Onest",sans-serif;color:var(--ink);cursor:pointer}
+.tabs button[aria-selected=true]{background:var(--ink);border-color:var(--ink);color:#fff}
+.page{flex:1;min-height:0;overflow:auto;padding:0 16px 0 56px;background-color:var(--paper);background-attachment:local;
+background-image:linear-gradient(90deg,transparent 43px,var(--red) 43px,var(--red) 44px,transparent 44px),linear-gradient(var(--grid) 1px,transparent 1px),linear-gradient(90deg,var(--grid) 1px,transparent 1px);
+background-size:100% 100%,32px 32px,32px 32px}
+.ln{font:600 26px/32px "Caveat",cursive;color:var(--ink);min-height:32px;overflow-wrap:anywhere;opacity:0;clip-path:inset(-4px 100% -8px 0);animation:write .35s forwards;animation-delay:calc(var(--i)*.28s)}
+.ln.res{text-decoration:underline double var(--red);text-underline-offset:5px}
+.ln.err{color:var(--red);font:500 16px/32px "Onest",sans-serif}
+.hint{font:600 24px/32px "Caveat",cursive;color:#5A6784}
+.plain{font:500 16px/32px "Onest",sans-serif}
+h1{font:600 30px/32px "Caveat",cursive;color:var(--ink);margin:0;height:64px;display:flex;align-items:center}
+@keyframes write{to{opacity:1;clip-path:inset(-4px -4px -8px 0)}}
+@media (prefers-reduced-motion:reduce){.ln{animation:none;opacity:1;clip-path:none}}
+.dock{background:var(--tint);border-top:1px solid var(--line);padding:8px 10px calc(10px + env(safe-area-inset-bottom));max-height:62vh;overflow:auto}
+.hist{display:flex;gap:6px;overflow-x:auto;padding-bottom:6px}
+.hist button{flex:none;font:500 13px "Onest",sans-serif;background:var(--key);border:1px solid var(--line);border-radius:14px;padding:4px 10px;color:var(--ink);cursor:pointer}
+.hist .fx{background:var(--ink);color:#fff;border-color:var(--ink)}
+.expr{min-height:52px;padding:10px 6px;text-align:right;font:500 26px/32px "Onest",sans-serif;white-space:nowrap;overflow-x:auto}
+.expr.empty{color:#9AA7C2}
+.pad{display:grid;grid-template-columns:repeat(5,1fr);gap:6px}
+.pad.fn{margin-bottom:6px}
+.pad button{height:48px;font:500 20px "Onest",sans-serif;background:var(--key);color:var(--text);border:1px solid var(--line);border-radius:10px;cursor:pointer;touch-action:manipulation}
+.pad.fn button{height:40px;font-size:16px;color:var(--ink);background:var(--tint)}
+.pad button:active{background:var(--tint)}
+.pad .op{background:var(--tint);color:var(--ink)}
+.pad .go{grid-column:span 2;background:var(--ink);border-color:var(--ink);color:#fff;font-weight:600}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid var(--red);outline-offset:2px}
+.fgrid{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:8px 0}
+.fgrid label{font:500 12px "Onest",sans-serif;color:#5A6784;display:flex;flex-direction:column;gap:2px}
+.dock input,.dock select{height:44px;width:100%;border:1px solid var(--line);border-radius:10px;padding:0 10px;font:500 18px "Onest",sans-serif;background:#fff;color:var(--text)}
+.act{width:100%;height:48px;font:600 17px "Onest",sans-serif;border-radius:10px;border:1px solid var(--ink);background:var(--ink);color:#fff;cursor:pointer}
+.lockbtn{margin:8px 0;height:44px;padding:0 18px;font:600 16px "Onest",sans-serif;border-radius:10px;border:1px solid var(--ink);background:var(--ink);color:#fff;cursor:pointer}
+.lockbtn.alt{background:transparent;color:var(--ink)}
+.card{font:600 24px/32px "Onest",sans-serif;letter-spacing:.04em;color:var(--ink)}
+[hidden]{display:none!important}
+</style>
+</head>
+<body>
+<section id="lock" class="page" hidden></section>
+
+<nav class="tabs" id="tabs" role="tablist" hidden></nav>
+<div class="page" id="out" hidden></div>
+
+<div class="dock" id="hisob" hidden>
+  <div class="hist" id="hist"><button class="fx" id="fxb" aria-expanded="false">f(x)</button></div>
+  <div class="pad fn" id="fnpad" hidden>
+    <button data-k="sin(">sin</button><button data-k="cos(">cos</button><button data-k="tan(">tan</button><button data-k="log(">log</button><button data-k="ln(">ln</button>
+    <button data-k="abs(">abs</button><button data-k="π">π</button><button data-k="e">e</button><button data-k=" mod ">mod</button><button data-k="√">√</button>
+  </div>
+  <div class="expr empty" id="expr">0</div>
+  <div class="pad" id="pad">
+    <button class="op" data-k="(">(</button><button class="op" data-k=")">)</button><button class="op" data-k="^">^</button><button class="op" data-k="%">%</button><button class="op" data-k="⌫" aria-label="Oʻchirish">⌫</button>
+    <button data-k="7">7</button><button data-k="8">8</button><button data-k="9">9</button><button class="op" data-k="÷">÷</button><button class="op" data-k="!">!</button>
+    <button data-k="4">4</button><button data-k="5">5</button><button data-k="6">6</button><button class="op" data-k="×">×</button><button class="op" data-k="C">C</button>
+    <button data-k="1">1</button><button data-k="2">2</button><button data-k="3">3</button><button class="op" data-k="−">−</button><button class="op" data-k="√">√</button>
+    <button data-k="0">0</button><button data-k=",">,</button><button class="op" data-k="+">+</button><button class="go" data-k="=">Yechish</button>
+  </div>
+</div>
+
+<div class="dock" id="form" hidden>
+  <select id="kind" aria-label="Turi"></select>
+  <div class="fgrid" id="fields"></div>
+  <button class="act" id="run">Yechish</button>
+</div>
+
+<script>
+const tg = window.Telegram && Telegram.WebApp;
+if (tg) { tg.ready(); tg.expand(); try { tg.setHeaderColor("#F6F8FC"); tg.setBackgroundColor("#F6F8FC"); } catch (e) {} }
+const init = tg ? tg.initData : "";
+const $ = id => document.getElementById(id);
+const H = { "X-Init-Data": init };
+
+function lock(s, msg) {
+  const el = $("lock"); el.hidden = false;
+  const price = (s && s.price ? s.price : 10000).toLocaleString("ru-RU");
+  if (msg) { el.innerHTML = `<h1>Hisob daftari</h1><div class="plain">${msg}</div><button class="lockbtn" onclick="location.reload()">Qayta urinish</button>`; return; }
+  if (!s.ok) { el.innerHTML = `<h1>Hisob daftari</h1><div class="plain">Ilovani Telegram bot orqali oching.</div>`; return; }
+  el.innerHTML = `<h1>Toʻlov kerak</h1><div class="plain">Kirish narxi: ${price} soʻm</div>
+    <div class="card">${s.card}</div><div class="plain">${s.owner || ""}</div>
+    <button class="lockbtn alt" id="cp">Kartani nusxalash</button>
+    <div class="plain">Toʻlagach, botga chek rasmini yuboring. Tasdiqlangach ilova ochiladi.</div>
+    <button class="lockbtn" id="back">Botga qaytish</button>`;
+  $("cp").onclick = () => { try { navigator.clipboard.writeText(s.card); $("cp").textContent = "Nusxalandi"; } catch (e) {} };
+  $("back").onclick = () => tg ? tg.close() : history.back();
+}
+
+async function boot() {
+  try {
+    const s = await (await fetch("/api/status", { headers: H })).json();
+    if (!s.paid) return lock(s);
+    const e = await fetch("/engine.js", { headers: H });
+    if (!e.ok) return lock(s);
+    new Function(await e.text())();
+    start();
+  } catch (err) { lock(null, "Ulanishda xato. Internetni tekshirib, qayta urinib koʻring."); }
+}
+
+function start() {
+  ["tabs", "out"].forEach(i => $(i).hidden = false);
+  const tabs = [{ id: "hisob", name: "Hisob" }].concat(Engine.mods);
+  let cur = "hisob", ex = "", hist = [];
+  try { hist = JSON.parse(localStorage.getItem("h") || "[]"); } catch (e) {}
+
+  const title = t => `<h1>${t}</h1>`;
+  const hints = { hisob: "Misolni yozing, masalan 12+3×(8−2)", other: "Maydonlarni toʻldirib, Yechish bosing" };
+  function show(lines, err) {
+    const out = $("out"); out.innerHTML = title(tabs.find(t => t.id === cur).name);
+    lines.forEach((t, i) => {
+      const d = document.createElement("div");
+      d.className = "ln" + (err ? " err" : i === lines.length - 1 && (lines.length > 1 || cur !== "hisob") ? " res" : "");
+      d.style.setProperty("--i", i); d.textContent = (cur === "hisob" && i > 0 ? "= " : "") + t; out.appendChild(d);
+    });
+    out.scrollTop = 0;
+    if (tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred(err ? "error" : "success");
+  }
+  function empty() { $("out").innerHTML = title(tabs.find(t => t.id === cur).name) + `<div class="hint">${cur === "hisob" ? hints.hisob : hints.other}</div>`; }
+
+  function setTab(id) {
+    cur = id;
+    [...$("tabs").children].forEach(b => b.setAttribute("aria-selected", b.dataset.id === id));
+    $("hisob").hidden = id !== "hisob"; $("form").hidden = id === "hisob";
+    if (id !== "hisob") buildForm();
+    empty();
+  }
+  tabs.forEach(t => { const b = document.createElement("button"); b.textContent = t.name; b.dataset.id = t.id; b.setAttribute("role", "tab"); b.onclick = () => setTab(t.id); $("tabs").appendChild(b); });
+
+  /* ---- Hisob ---- */
+  const draw = () => { const el = $("expr"); el.textContent = ex || "0"; el.classList.toggle("empty", !ex); el.scrollLeft = el.scrollWidth; };
+  const drawHist = () => {
+    [...$("hist").querySelectorAll(".h")].forEach(n => n.remove());
+    hist.forEach(h => { const b = document.createElement("button"); b.className = "h"; b.textContent = h.e + " = " + h.r; b.onclick = () => { ex = h.e; draw(); }; $("hist").appendChild(b); });
+  };
+  function solve() {
+    if (!ex) return;
+    try {
+      const r = Engine.solve(ex);
+      show(r.steps.length === 1 ? [r.steps[0], r.result] : r.steps);
+      hist = [{ e: ex, r: r.result }].concat(hist.filter(h => h.e !== ex)).slice(0, 10);
+      try { localStorage.setItem("h", JSON.stringify(hist)); } catch (e) {}
+      drawHist();
+    } catch (e) { show([e.message || "Ifoda xato."], true); }
+  }
+  function press(k) {
+    if (k === "C") ex = ""; else if (k === "⌫") ex = ex.slice(0, -1); else if (k === "=") return solve(); else ex += k;
+    draw();
+  }
+  $("hisob").addEventListener("click", e => { const b = e.target.closest("button[data-k]"); if (b) press(b.dataset.k); });
+  $("fxb").onclick = () => { const f = $("fnpad"); f.hidden = !f.hidden; $("fxb").setAttribute("aria-expanded", String(!f.hidden)); };
+  document.addEventListener("keydown", e => {
+    if (cur !== "hisob" || e.target.tagName === "INPUT") return;
+    if (e.key === "Enter") return solve();
+    if (e.key === "Backspace") return press("⌫");
+    const m = { "*": "×", "/": "÷", "-": "−", ".": "," };
+    const k = m[e.key] || e.key;
+    if (/^[0-9,+−×÷^()%!√]$/.test(k)) press(k);
+  });
+
+  /* ---- Shakllar ---- */
+  function buildForm() {
+    const mod = Engine.mods.find(m => m.id === cur);
+    const sel = $("kind"); sel.innerHTML = "";
+    mod.kinds.forEach((k, i) => { const o = document.createElement("option"); o.value = i; o.textContent = k.name; sel.appendChild(o); });
+    sel.hidden = mod.kinds.length < 2;
+    sel.onchange = fields; fields();
+    function fields() {
+      const k = mod.kinds[sel.value], box = $("fields"); box.innerHTML = "";
+      k.fields.forEach(f => {
+        const l = document.createElement("label"); l.textContent = f[1];
+        const i = document.createElement("input"); i.dataset.k = f[0]; i.autocomplete = "off";
+        i.inputMode = mod.text ? "text" : "decimal"; i.setAttribute("aria-label", f[1]);
+        i.onkeydown = e => { if (e.key === "Enter") go(); };
+        l.appendChild(i); box.appendChild(l);
+      });
+      if (k.fields.length % 2) box.lastChild.style.gridColumn = "span 2";
+    }
+    $("run").onclick = go;
+    function go() {
+      const k = mod.kinds[sel.value], v = {};
+      for (const i of $("fields").querySelectorAll("input")) {
+        const n = parseFloat(i.value.replace(/\s/g, "").replace(",", ".").replace("−", "-"));
+        if (isNaN(n)) return show(["Barcha maydonlarni toʻldiring (raqam bilan)."], true);
+        v[i.dataset.k] = n;
+      }
+      try { show(k.run(v)); } catch (e) { show([e.message || "Hisoblab boʻlmadi."], true); }
+    }
+  }
+
+  draw(); drawHist(); setTab("hisob");
+}
+boot();
+</script>
+</body>
+</html>
